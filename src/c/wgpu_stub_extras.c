@@ -602,9 +602,10 @@ static void mbt_wgpu_buffer_map_read_async_cb(WGPUMapAsyncStatus status,
     slot->mapped_u32 = 1u;
     mbt_wgpu_buffer_mark_mapped_tracked(slot->buffer);
   }
+  const uint64_t id = slot->id;
   atomic_store_explicit(&slot->done_u32, 1u, memory_order_release);
-  if (slot->id != 0u) {
-    mbt_wait_any_mark_completed(slot->id);
+  if (id != 0u) {
+    mbt_wait_any_mark_completed(id);
   }
 }
 
@@ -620,9 +621,10 @@ static void mbt_wgpu_buffer_map_read_after_submit_cb(WGPUQueueWorkDoneStatus sta
   }
   if (status != WGPUQueueWorkDoneStatus_Success) {
     slot->status_u32 = (uint32_t)WGPUMapAsyncStatus_Error;
+    const uint64_t id = slot->id;
     atomic_store_explicit(&slot->done_u32, 1u, memory_order_release);
-    if (slot->id != 0u) {
-      mbt_wait_any_mark_completed(slot->id);
+    if (id != 0u) {
+      mbt_wait_any_mark_completed(id);
     }
     return;
   }
