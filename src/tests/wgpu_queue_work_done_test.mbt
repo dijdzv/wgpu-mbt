@@ -33,6 +33,7 @@ fn wait_for_queue_map_read(
 
 ///|
 test "wgpu queue: submit map read can be canceled before processing events" {
+  // Arrange: create a device and an 8-byte GPU-to-CPU copy.
   let instance = @wgpu.Instance::create()
   defer instance.release()
   let adapter = instance.request_adapter_sync()
@@ -57,10 +58,12 @@ test "wgpu queue: submit map read can be canceled before processing events" {
   encoder.copy_buffer_to_buffer(src, 0UL, staging, 0UL, 8UL)
   let cmd = encoder.finish()
   defer cmd.release()
+  // Act: submit through the helper under test, then immediately cancel mapping.
   let future = queue.submit_one_and_map_read_async(cmd, staging, 0UL, 8UL)
   assert_true(future != 0UL)
   // No event processing between submitting the request and canceling it.
   staging.unmap()
+  // Assert: drive completion and check cancellation, rather than a later success.
   assert_true(wait_for_queue_map_read(instance, device, future))
   defer queue.map_read_async_clear(future)
   assert_eq(
