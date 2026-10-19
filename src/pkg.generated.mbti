@@ -1540,6 +1540,7 @@ pub struct Adapter {
 }
 pub fn Adapter::add_ref(Self) -> Self
 pub fn Adapter::add_ref_raw(Self) -> Unit
+pub fn Adapter::from_owned_raw(@c.WGPUAdapter) -> Self?
 pub fn Adapter::get_features(Self, @c.WGPUSupportedFeaturesPtr) -> Unit
 pub fn Adapter::get_info(Self, @c.WGPUAdapterInfoPtr) -> @c.WGPUStatus
 pub fn Adapter::get_limits(Self, @c.WGPULimitsPtr) -> @c.WGPUStatus

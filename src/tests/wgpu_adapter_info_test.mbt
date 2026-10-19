@@ -13,9 +13,19 @@
 // limitations under the License.
 
 ///|
+test "owned adapter adoption rejects null" {
+  inspect(
+    @wgpu.Adapter::from_owned_raw(@wgpu_c.null_adapter()) is None,
+    content="true",
+  )
+}
+
+///|
 test "wgpu adapter info (numeric)" {
   let instance = @wgpu.Instance::create()
+  defer instance.release()
   let adapter = instance.request_adapter_sync()
+  defer adapter.release()
   let backend = adapter.info_backend_type_u32()
   let backend_ok = if @wgpu.platform_is_macos() {
     backend == @wgpu.BACKEND_TYPE_METAL
@@ -44,8 +54,17 @@ test "wgpu adapter info (numeric)" {
   let _vendor_id = adapter.info_vendor_id_u32()
   let _device_id = adapter.info_device_id_u32()
   inspect(true, content="true")
-  adapter.release()
-  instance.release()
+  {
+    let raw = adapter.raw_handle()
+    @wgpu_c.wgpuAdapterAddRef(raw)
+    guard @wgpu.Adapter::from_owned_raw(raw) is Some(adopted) else {
+      @wgpu_c.adapter_release(raw)
+      fail("a valid owned adapter was rejected")
+    }
+    defer adopted.release()
+    inspect(adopted.info_backend_type_u32() == backend, content="true")
+  }
+  inspect(adapter.info_backend_type_u32() == backend, content="true")
 }
 
 ///|

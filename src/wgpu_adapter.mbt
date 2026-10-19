@@ -1361,3 +1361,18 @@ pub fn Adapter::add_ref(self : Adapter) -> Adapter {
 pub fn Adapter::raw_handle(self : Adapter) -> @c.Adapter {
   self.raw
 }
+
+///|
+/// Transfer one caller-owned reference from the same WebGPU C ABI/runtime.
+/// Null returns `None` without consuming or releasing anything. A non-null
+/// handle becomes this wrapper's reference without an additional AddRef, and
+/// the caller must release the returned Adapter exactly once.
+/// A borrowed `raw_handle()` is not an owned reference. Non-null validity and
+/// linear ownership are caller requirements, not checked by this function.
+pub fn Adapter::from_owned_raw(raw : @c.Adapter) -> Adapter? {
+  if @c.adapter_is_null(raw) {
+    None
+  } else {
+    Some({ raw, })
+  }
+}
