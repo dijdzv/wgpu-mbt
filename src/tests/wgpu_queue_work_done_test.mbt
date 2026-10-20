@@ -19,7 +19,7 @@ fn wait_for_queue_map_read(
   future_id : UInt64,
 ) -> Bool {
   ignore(device.poll(wait=true))
-  let completed : Ref[Bool] = @ref.new(false)
+  let completed : Ref[Bool] = Ref(false)
   for _i = 0; _i < 4000 && !completed.val; _i = _i + 1 {
     ignore(device.poll())
     let wait = instance.wait_any_one(future_id)
@@ -58,7 +58,7 @@ test "wgpu queue.on_submitted_work_done_sync" {
   let encoder4 = device.create_command_encoder()
   let cmd4 = encoder4.finish()
   queue.submit_one(cmd4)
-  let timeout_raised_msg : Ref[String] = @ref.new("")
+  let timeout_raised_msg : Ref[String] = Ref("")
   queue.on_submitted_work_done_wait_or_raise(instance, timeout_ns=1UL) catch {
     e => timeout_raised_msg.val = e.message()
   }

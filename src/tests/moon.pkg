@@ -1,6 +1,5 @@
 import {
   "Milky2018/wgpu_mbt" @wgpu,
-  "moonbitlang/core/ref",
 }
 
 import {
@@ -8,13 +7,13 @@ import {
   "Milky2018/wgpu_mbt/c" @wgpu_c,
   "moonbitlang/core/bench",
   "moonbitlang/core/debug",
-  "moonbitlang/core/ref",
   "moonbitlang/core/encoding/utf8",
 } for "test"
 
 options(
   link: { },
   targets: {
+    "test_helpers_import_test.mbt": [ "native" ],
     "wgpu_adapter_info_strings_test.mbt": [ "native" ],
     "wgpu_adapter_info_test.mbt": [ "native" ],
     "wgpu_adapter_limits_test.mbt": [ "native" ],

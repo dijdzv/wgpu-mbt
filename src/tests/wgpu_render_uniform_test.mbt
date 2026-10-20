@@ -36,7 +36,7 @@ fn render_uniform_vec4_bytes(
   b : Float,
   a : Float,
 ) -> Bytes {
-  let out : Ref[Array[Byte]] = @ref.new([])
+  let out : Ref[Array[Byte]] = Ref([])
   render_uniform_push_bytes(out, render_uniform_f32_le_bytes(r))
   render_uniform_push_bytes(out, render_uniform_f32_le_bytes(g))
   render_uniform_push_bytes(out, render_uniform_f32_le_bytes(b))

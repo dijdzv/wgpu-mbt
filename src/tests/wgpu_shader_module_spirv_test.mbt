@@ -65,7 +65,7 @@ fn spirv_vertex_shader_bytes() -> Bytes {
     0x00000017U, 0x00000010U, 0x00000012U, 0x0003003eU, 0x00000017U, 0x00000015U,
     0x000100fdU, 0x00010038U,
   ]
-  let out : Ref[Array[Byte]] = @ref.new([])
+  let out : Ref[Array[Byte]] = Ref([])
   for i = 0; i < words.length(); i = i + 1 {
     spirv_push_bytes(out, u32_le_bytes(words[i]))
   }

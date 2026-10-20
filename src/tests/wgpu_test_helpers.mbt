@@ -99,7 +99,7 @@ pub fn f32le_bytes(v : Float) -> Bytes {
 
 ///|
 pub fn concat_bytes(parts : Array[Bytes]) -> Bytes {
-  let out : Ref[Array[Byte]] = @ref.new([])
+  let out : Ref[Array[Byte]] = Ref([])
   for i = 0; i < parts.length(); i = i + 1 {
     let p = parts[i]
     for j = 0; j < p.length(); j = j + 1 {

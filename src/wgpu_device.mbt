@@ -956,7 +956,7 @@ pub fn Device::create_texture_u32(
       ),
     }
   } else {
-    let raw_view_formats : Ref[Array[UInt]] = @ref.new([])
+    let raw_view_formats : Ref[Array[UInt]] = Ref([])
     for i = 0; i < count; i = i + 1 {
       raw_view_formats.val.push(view_formats[i].raw)
     }

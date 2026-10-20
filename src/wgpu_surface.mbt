@@ -127,7 +127,7 @@ pub fn surface_configuration_ptr_new(
       config.desired_maximum_frame_latency,
     )
   } else {
-    let raw_view_formats : Ref[Array[UInt]] = @ref.new([])
+    let raw_view_formats : Ref[Array[UInt]] = Ref([])
     for i = 0; i < count; i = i + 1 {
       raw_view_formats.val.push(config.view_formats[i].raw)
     }
@@ -221,7 +221,7 @@ pub fn Surface::configure_with(
       packed_alpha_mode_and_desired_maximum_frame_latency,
     )
   } else {
-    let raw_view_formats : Ref[Array[UInt]] = @ref.new([])
+    let raw_view_formats : Ref[Array[UInt]] = Ref([])
     for i = 0; i < count; i = i + 1 {
       raw_view_formats.val.push(config.view_formats[i].raw)
     }
@@ -540,7 +540,7 @@ pub fn Surface::capabilities_formats(
   adapter : Adapter,
 ) -> Array[TextureFormat] {
   let count = self.capabilities_formats_count_u64(adapter)
-  let out : Ref[Array[TextureFormat]] = @ref.new([])
+  let out : Ref[Array[TextureFormat]] = Ref([])
   for i = 0; i < count.to_int(); i = i + 1 {
     out.val.push(self.capabilities_format_u32_at(adapter, i.to_uint64()))
   }
@@ -553,7 +553,7 @@ pub fn Surface::capabilities_present_modes(
   adapter : Adapter,
 ) -> Array[UInt] {
   let count = self.capabilities_present_modes_count_u64(adapter)
-  let out : Ref[Array[UInt]] = @ref.new([])
+  let out : Ref[Array[UInt]] = Ref([])
   for i = 0; i < count.to_int(); i = i + 1 {
     out.val.push(self.capabilities_present_mode_u32_at(adapter, i.to_uint64()))
   }
@@ -566,7 +566,7 @@ pub fn Surface::capabilities_alpha_modes(
   adapter : Adapter,
 ) -> Array[UInt] {
   let count = self.capabilities_alpha_modes_count_u64(adapter)
-  let out : Ref[Array[UInt]] = @ref.new([])
+  let out : Ref[Array[UInt]] = Ref([])
   for i = 0; i < count.to_int(); i = i + 1 {
     out.val.push(self.capabilities_alpha_mode_u32_at(adapter, i.to_uint64()))
   }

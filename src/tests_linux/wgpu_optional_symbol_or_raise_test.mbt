@@ -125,7 +125,7 @@ test "optional symbol or_raise: compilation info disabled => runtime fail" {
     #|fn main() {}
     #|
   let sm = device.create_shader_module_wgsl(wgsl)
-  let outcome : Ref[String] = @ref.new("unreached")
+  let outcome : Ref[String] = Ref("unreached")
   try {
     let _ = sm.get_compilation_info_sync_or_raise(instance)
     outcome.val = "unexpected_success"
@@ -168,7 +168,7 @@ test "optional symbol or_raise: pipeline async disabled => disabled error" {
     pl.raw_handle(),
     sm_compute.raw_handle(),
   )
-  let outcome : Ref[String] = @ref.new("unreached")
+  let outcome : Ref[String] = Ref("unreached")
   try {
     let cp = device.create_compute_pipeline_async_sync_ptr_or_raise(
       instance, cp_desc,
@@ -232,7 +232,7 @@ test "optional symbol or_raise: render pipeline async strict path is repo-gated"
     pl.raw_handle(),
     sm.raw_handle(),
   )
-  let outcome : Ref[String] = @ref.new("unreached")
+  let outcome : Ref[String] = Ref("unreached")
   try {
     let rp = device.create_render_pipeline_async_sync_ptr_or_raise(
       instance, rp_desc,
