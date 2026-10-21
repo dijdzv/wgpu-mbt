@@ -2034,6 +2034,7 @@ pub fn Device::create_texture_rgba8_2d_with_usage(Self, UInt, UInt, TextureUsage
 pub fn Device::create_texture_u32(Self, UInt, UInt, UInt, TextureUsage, TextureDimension, TextureFormat, mip_level_count? : UInt, sample_count? : UInt, view_formats? : Array[TextureFormat]) -> Texture
 pub fn Device::destroy(Self) -> Unit
 pub fn Device::destroy_raw(Self) -> Unit
+pub fn Device::from_owned_raw(@c.WGPUDevice, adapter~ : Adapter) -> Self?
 pub fn Device::get_adapter_info(Self, @c.WGPUAdapterInfoPtr) -> @c.WGPUStatus
 pub fn Device::get_features(Self, @c.WGPUSupportedFeaturesPtr) -> Unit
 pub fn Device::get_limits(Self, @c.WGPULimitsPtr) -> @c.WGPUStatus

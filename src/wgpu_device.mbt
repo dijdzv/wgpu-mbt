@@ -1585,3 +1585,21 @@ pub fn Device::add_ref(self : Device) -> Device {
 pub fn Device::raw_handle(self : Device) -> @c.Device {
   self.raw
 }
+
+///|
+/// Adopt one owned native Device reference, without adding a reference.
+/// The caller must release the returned Device exactly once. The matching
+/// Adapter that created this Device is borrowed only during metadata copying;
+/// it is not retained by this function. Metadata registration is best-effort
+/// and does not change whether the Device reference is adopted.
+/// A null handle returns None. Non-null validity, the matching Adapter and
+/// linear ownership are caller requirements, not checked by this function.
+/// A borrowed raw_handle() alone is not an owned reference.
+pub fn Device::from_owned_raw(raw : @c.Device, adapter~ : Adapter) -> Device? {
+  if @c.device_is_null(raw) {
+    None
+  } else {
+    @c.device_info_cache_register(raw, adapter.raw)
+    Some({ raw, })
+  }
+}

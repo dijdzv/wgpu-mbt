@@ -602,6 +602,8 @@ pub fn device_info_architecture_utf8_len(WGPUDevice) -> UInt64
 
 pub fn device_info_backend_type_u32(WGPUDevice) -> UInt
 
+pub fn device_info_cache_register(WGPUDevice, WGPUAdapter) -> Unit
+
 pub fn device_info_description_utf8(WGPUDevice, Bytes, UInt64) -> Bool
 
 pub fn device_info_description_utf8_len(WGPUDevice) -> UInt64

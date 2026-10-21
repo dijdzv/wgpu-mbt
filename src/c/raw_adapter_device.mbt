@@ -785,6 +785,12 @@ pub extern "C" fn adapter_request_device_async_device(
 ) -> WGPUDevice = "mbt_wgpu_adapter_request_device_async_device"
 
 ///|
+pub extern "C" fn device_info_cache_register(
+  device : Device,
+  adapter : Adapter,
+) -> Unit = "mbt_wgpu_device_info_cache_register"
+
+///|
 pub extern "C" fn adapter_request_device_async_message_utf8_len(
   future_id : UInt64,
 ) -> UInt64 = "mbt_wgpu_adapter_request_device_async_message_utf8_len"

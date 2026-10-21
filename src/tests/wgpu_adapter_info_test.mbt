@@ -72,6 +72,10 @@ test "wgpu device info (numeric)" {
   let instance = @wgpu.Instance::create()
   let adapter = instance.request_adapter_sync()
   let device = adapter.request_device_sync(instance)
+  inspect(
+    @wgpu.Device::from_owned_raw(@wgpu_c.null_device(), adapter~) is None,
+    content="true",
+  )
   let backend = device.info_backend_type_u32()
   let backend_ok = if @wgpu.platform_is_macos() {
     backend == @wgpu.BACKEND_TYPE_METAL
@@ -99,6 +103,18 @@ test "wgpu device info (numeric)" {
   let _vendor_id = device.info_vendor_id_u32()
   let _device_id = device.info_device_id_u32()
   inspect(true, content="true")
+  {
+    let raw = device.raw_handle()
+    @wgpu_c.wgpuDeviceAddRef(raw)
+    guard @wgpu.Device::from_owned_raw(raw, adapter~) is Some(adopted) else {
+      @wgpu_c.device_release(raw)
+      fail("a valid owned device was rejected")
+    }
+    defer adopted.release()
+    inspect(adopted.info_backend_type_u32() == backend, content="true")
+    inspect(adopted.info_adapter_type_u32() == ty, content="true")
+  }
+  inspect(device.info_backend_type_u32() == backend, content="true")
   device.release()
   adapter.release()
   instance.release()
