@@ -14,6 +14,7 @@ options(
     "wgpu_stub_descs_instance.c",
     "wgpu_stub_descs_pipelines.c",
     "wgpu_stub_map.c",
+    "wgpu_stub_release_batch.c",
   ],
   targets: {
     "raw.mbt": [ "native" ],
@@ -23,6 +24,7 @@ options(
     "raw_debug_async.mbt": [ "native" ],
     "raw_helpers.mbt": [ "native" ],
     "raw_instance.mbt": [ "native" ],
+    "raw_native_release.mbt": [ "native" ],
     "raw_surface.mbt": [ "native" ],
   },
 )

@@ -926,6 +926,56 @@ pub fn native_recovery_hint_utf8(Bytes, UInt64) -> Bool
 
 pub fn native_recovery_hint_utf8_len() -> UInt64
 
+pub fn native_release_batch_add_bind_group(NativeReleaseBatch, WGPUBindGroup) -> Bool
+
+pub fn native_release_batch_add_bind_group_layout(NativeReleaseBatch, WGPUBindGroupLayout) -> Bool
+
+pub fn native_release_batch_add_buffer(NativeReleaseBatch, WGPUBuffer) -> Bool
+
+pub fn native_release_batch_add_command_buffer(NativeReleaseBatch, WGPUCommandBuffer) -> Bool
+
+pub fn native_release_batch_add_command_encoder(NativeReleaseBatch, WGPUCommandEncoder) -> Bool
+
+pub fn native_release_batch_add_compute_pass(NativeReleaseBatch, WGPUComputePassEncoder) -> Bool
+
+pub fn native_release_batch_add_compute_pipeline(NativeReleaseBatch, WGPUComputePipeline) -> Bool
+
+pub fn native_release_batch_add_pipeline_layout(NativeReleaseBatch, WGPUPipelineLayout) -> Bool
+
+pub fn native_release_batch_add_query_set(NativeReleaseBatch, WGPUQuerySet) -> Bool
+
+pub fn native_release_batch_add_render_bundle(NativeReleaseBatch, WGPURenderBundle) -> Bool
+
+pub fn native_release_batch_add_render_bundle_encoder(NativeReleaseBatch, WGPURenderBundleEncoder) -> Bool
+
+pub fn native_release_batch_add_render_pass(NativeReleaseBatch, WGPURenderPassEncoder) -> Bool
+
+pub fn native_release_batch_add_render_pipeline(NativeReleaseBatch, WGPURenderPipeline) -> Bool
+
+pub fn native_release_batch_add_sampler(NativeReleaseBatch, WGPUSampler) -> Bool
+
+pub fn native_release_batch_add_shader(NativeReleaseBatch, WGPUShaderModule) -> Bool
+
+pub fn native_release_batch_add_surface(NativeReleaseBatch, WGPUSurface, OpaquePtr) -> Bool
+
+pub fn native_release_batch_add_texture(NativeReleaseBatch, WGPUTexture) -> Bool
+
+pub fn native_release_batch_add_texture_view(NativeReleaseBatch, WGPUTextureView) -> Bool
+
+pub fn native_release_batch_commit(NativeReleaseBatch) -> Bool
+
+pub fn native_release_batch_discard(NativeReleaseBatch) -> Bool
+
+pub fn native_release_batch_execute(NativeReleaseBatch) -> Bool
+
+pub fn native_release_batch_finish_after_join(NativeReleaseBatch) -> Bool
+
+pub fn native_release_batch_is_null(NativeReleaseBatch) -> Bool
+
+pub fn native_release_batch_new(Int32) -> NativeReleaseBatch
+
+pub fn native_release_batch_returned_count(NativeReleaseBatch) -> Int32
+
 pub fn native_resolved_lib_path_utf8(Bytes, UInt64) -> Bool
 
 pub fn native_resolved_lib_path_utf8_len() -> UInt64
@@ -1962,6 +2012,9 @@ pub type BindGroupBuilderObj
 pub type BindGroupLayoutBuilderObj
 
 pub type ComputePipelineDescBuilderObj
+
+#external
+pub type NativeReleaseBatch
 
 #external
 pub type OpaquePtr

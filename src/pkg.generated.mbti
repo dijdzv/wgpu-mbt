@@ -2337,6 +2337,15 @@ pub fn PipelineLayout::release(Self) -> Unit
 pub fn PipelineLayout::release_raw(Self) -> Unit
 pub fn PipelineLayout::set_label(Self, String) -> Unit
 
+pub struct PreparedNativeReleaseBatch {
+  // private fields
+}
+pub fn PreparedNativeReleaseBatch::commit(Self) -> Bool
+pub fn PreparedNativeReleaseBatch::discard_prepared(Self) -> Bool
+pub fn PreparedNativeReleaseBatch::finish_after_join(Self) -> Bool
+pub fn PreparedNativeReleaseBatch::native_batch(Self) -> @c.NativeReleaseBatch
+pub fn PreparedNativeReleaseBatch::prepare(Array[AutoReleasePool]) -> Self?
+
 pub struct PresentMode {
   raw : UInt32
 }

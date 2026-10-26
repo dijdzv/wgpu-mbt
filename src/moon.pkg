@@ -17,6 +17,8 @@ options(
     "wgpu_instance.mbt": [ "native" ],
     "wgpu_lifecycle.mbt": [ "native" ],
     "wgpu_managed.mbt": [ "native" ],
+    "wgpu_native_release.mbt": [ "native" ],
+    "wgpu_native_release_wbtest.mbt": [ "native" ],
     "wgpu_passes.mbt": [ "native" ],
     "wgpu_pipeline.mbt": [ "native" ],
     "wgpu_pipeline_desc_builder.mbt": [ "native" ],

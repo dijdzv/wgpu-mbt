@@ -651,6 +651,12 @@ pub fn Surface::release(self : Surface) -> Unit {
 }
 
 ///|
+fn Surface::clear_native_release_metadata(self : Surface) -> Unit {
+  self.owner_window_handle = None
+  self.owner_display_handle = None
+}
+
+///|
 pub fn Surface::set_label(self : Surface, label : String) -> Unit {
   let bytes = utf8_bytes(label)
   @c.surface_set_label_utf8(self.raw, bytes, bytes.length().to_uint64())

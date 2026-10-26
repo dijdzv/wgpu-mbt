@@ -59,9 +59,21 @@ fn release_auto_release_entry(entry : AutoReleaseEntry) -> Unit {
 }
 
 ///|
+priv enum AutoReleasePoolPhase {
+  Open
+  Releasing
+  Transferred
+  Released
+} derive(Eq, Debug)
+
+///|
+let next_auto_release_pool_id : Ref[UInt64] = Ref(1UL)
+
+///|
 priv struct AutoReleasePoolState {
+  id : UInt64
   mut entries : Array[AutoReleaseEntry]
-  mut released : Bool
+  mut phase : AutoReleasePoolPhase
 }
 
 ///|
@@ -71,7 +83,12 @@ pub struct AutoReleasePool {
 
 ///|
 pub fn AutoReleasePool::new() -> AutoReleasePool {
-  { state: Ref({ entries: [], released: false, }), }
+  guard next_auto_release_pool_id.val < 18446744073709551615UL else {
+    abort("AutoReleasePool identity exhausted")
+  }
+  let id = next_auto_release_pool_id.val
+  next_auto_release_pool_id.val += 1UL
+  { state: Ref({ id, entries: [], phase: Open, }), }
 }
 
 ///|
@@ -79,7 +96,7 @@ fn AutoReleasePool::push(
   self : AutoReleasePool,
   entry : AutoReleaseEntry,
 ) -> Unit {
-  guard !self.state.val.released else {
+  guard self.state.val.phase == Open else {
     abort("AutoReleasePool already released")
   }
   self.state.val.entries.push(entry)
@@ -87,14 +104,15 @@ fn AutoReleasePool::push(
 
 ///|
 pub fn AutoReleasePool::release(self : AutoReleasePool) -> Unit {
-  if self.state.val.released {
+  if self.state.val.phase != Open {
     return
   }
+  self.state.val.phase = Releasing
   for i = self.state.val.entries.length() - 1; i >= 0; i = i - 1 {
     release_auto_release_entry(self.state.val.entries[i])
   }
   self.state.val.entries = []
-  self.state.val.released = true
+  self.state.val.phase = Released
 }
 
 ///|
