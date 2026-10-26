@@ -14,6 +14,31 @@
 
 #include "wgpu_stub.h"
 
+#if defined(_WIN32)
+#include <windows.h>
+static CRITICAL_SECTION g_buffer_track_mu;
+static INIT_ONCE g_buffer_track_mu_once = INIT_ONCE_STATIC_INIT;
+static BOOL CALLBACK mbt_buffer_track_init_mu(PINIT_ONCE once, PVOID parameter,
+                                             PVOID *context) {
+  (void)once;
+  (void)parameter;
+  (void)context;
+  InitializeCriticalSection(&g_buffer_track_mu);
+  return TRUE;
+}
+static void mbt_buffer_track_lock(void) {
+  if (!InitOnceExecuteOnce(&g_buffer_track_mu_once, mbt_buffer_track_init_mu,
+                           NULL, NULL)) abort();
+  EnterCriticalSection(&g_buffer_track_mu);
+}
+static void mbt_buffer_track_unlock(void) { LeaveCriticalSection(&g_buffer_track_mu); }
+#else
+#include <pthread.h>
+static pthread_mutex_t g_buffer_track_mu = PTHREAD_MUTEX_INITIALIZER;
+static void mbt_buffer_track_lock(void) { pthread_mutex_lock(&g_buffer_track_mu); }
+static void mbt_buffer_track_unlock(void) { pthread_mutex_unlock(&g_buffer_track_mu); }
+#endif
+
 typedef struct mbt_buffer_track_entry {
   WGPUBuffer buffer;
   uint32_t refcount;
@@ -23,7 +48,7 @@ typedef struct mbt_buffer_track_entry {
 
 static mbt_buffer_track_entry_t *g_mbt_buffer_track_head = NULL;
 
-static mbt_buffer_track_entry_t *mbt_buffer_track_find(WGPUBuffer buffer) {
+static mbt_buffer_track_entry_t *mbt_buffer_track_find_locked(WGPUBuffer buffer) {
   for (mbt_buffer_track_entry_t *it = g_mbt_buffer_track_head; it; it = it->next) {
     if (it->buffer == buffer) {
       return it;
@@ -32,7 +57,7 @@ static mbt_buffer_track_entry_t *mbt_buffer_track_find(WGPUBuffer buffer) {
   return NULL;
 }
 
-static mbt_buffer_track_entry_t *mbt_buffer_track_insert(WGPUBuffer buffer,
+static mbt_buffer_track_entry_t *mbt_buffer_track_insert_locked(WGPUBuffer buffer,
                                                          uint32_t refcount,
                                                          WGPUBufferMapState state) {
   mbt_buffer_track_entry_t *entry =
@@ -52,33 +77,38 @@ static void mbt_buffer_track_register_new(WGPUBuffer buffer, bool mapped) {
   if (!buffer) {
     return;
   }
-  mbt_buffer_track_entry_t *entry = mbt_buffer_track_find(buffer);
+  mbt_buffer_track_lock();
+  mbt_buffer_track_entry_t *entry = mbt_buffer_track_find_locked(buffer);
   if (!entry) {
-    (void)mbt_buffer_track_insert(
+    (void)mbt_buffer_track_insert_locked(
         buffer, 1u,
         mapped ? WGPUBufferMapState_Mapped : WGPUBufferMapState_Unmapped);
-    return;
+  } else {
+    entry->refcount = 1u;
+    entry->state = mapped ? WGPUBufferMapState_Mapped : WGPUBufferMapState_Unmapped;
   }
-  entry->refcount = 1u;
-  entry->state = mapped ? WGPUBufferMapState_Mapped : WGPUBufferMapState_Unmapped;
+  mbt_buffer_track_unlock();
 }
 
 static void mbt_buffer_track_add_ref(WGPUBuffer buffer) {
   if (!buffer) {
     return;
   }
-  mbt_buffer_track_entry_t *entry = mbt_buffer_track_find(buffer);
+  mbt_buffer_track_lock();
+  mbt_buffer_track_entry_t *entry = mbt_buffer_track_find_locked(buffer);
   if (!entry) {
-    (void)mbt_buffer_track_insert(buffer, 2u, WGPUBufferMapState_Unmapped);
-    return;
+    (void)mbt_buffer_track_insert_locked(buffer, 2u, WGPUBufferMapState_Unmapped);
+  } else {
+    entry->refcount += 1u;
   }
-  entry->refcount += 1u;
+  mbt_buffer_track_unlock();
 }
 
 static void mbt_buffer_track_release(WGPUBuffer buffer) {
   if (!buffer) {
     return;
   }
+  mbt_buffer_track_lock();
   mbt_buffer_track_entry_t *prev = NULL;
   for (mbt_buffer_track_entry_t *it = g_mbt_buffer_track_head; it; prev = it, it = it->next) {
     if (it->buffer != buffer) {
@@ -86,38 +116,38 @@ static void mbt_buffer_track_release(WGPUBuffer buffer) {
     }
     if (it->refcount > 1u) {
       it->refcount -= 1u;
-      return;
-    }
-    if (prev) {
-      prev->next = it->next;
     } else {
-      g_mbt_buffer_track_head = it->next;
+      if (prev) {
+        prev->next = it->next;
+      } else {
+        g_mbt_buffer_track_head = it->next;
+      }
+      free(it);
     }
-    free(it);
-    return;
+    break;
   }
+  mbt_buffer_track_unlock();
 }
 
 static void mbt_buffer_track_set_state(WGPUBuffer buffer, WGPUBufferMapState state) {
   if (!buffer) {
     return;
   }
-  mbt_buffer_track_entry_t *entry = mbt_buffer_track_find(buffer);
+  mbt_buffer_track_lock();
+  mbt_buffer_track_entry_t *entry = mbt_buffer_track_find_locked(buffer);
   if (!entry) {
-    entry = mbt_buffer_track_insert(buffer, 1u, state);
-    if (!entry) {
-      return;
-    }
+    entry = mbt_buffer_track_insert_locked(buffer, 1u, state);
   }
-  entry->state = state;
+  if (entry) entry->state = state;
+  mbt_buffer_track_unlock();
 }
 
 static WGPUBufferMapState mbt_buffer_track_get_state(WGPUBuffer buffer) {
-  mbt_buffer_track_entry_t *entry = mbt_buffer_track_find(buffer);
-  if (!entry) {
-    return WGPUBufferMapState_Unmapped;
-  }
-  return entry->state;
+  mbt_buffer_track_lock();
+  mbt_buffer_track_entry_t *entry = mbt_buffer_track_find_locked(buffer);
+  WGPUBufferMapState state = entry ? entry->state : WGPUBufferMapState_Unmapped;
+  mbt_buffer_track_unlock();
+  return state;
 }
 
 WGPUBuffer mbt_wgpu_device_create_buffer_ptr_tracked(
@@ -143,8 +173,10 @@ void mbt_wgpu_buffer_destroy_tracked(WGPUBuffer buffer) {
 }
 
 void mbt_wgpu_buffer_release_tracked(WGPUBuffer buffer) {
-  wgpuBufferRelease(buffer);
+  // WhyNot: final native release can recycle the address before it returns.
+  // Retire this obligation first, without a metadata lock across driver calls.
   mbt_buffer_track_release(buffer);
+  wgpuBufferRelease(buffer);
 }
 
 void mbt_wgpu_buffer_unmap_tracked(WGPUBuffer buffer) {
