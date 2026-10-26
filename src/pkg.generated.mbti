@@ -2327,6 +2327,17 @@ pub fn MapMode::not_equal(Self, Self) -> Bool
 pub fn MapMode::to_u64(Self) -> UInt64
 pub impl Eq for MapMode
 
+pub(all) enum NativeReleasePart {
+  Pool(AutoReleasePool)
+  OwnedTexture(Texture)
+  OwnedQueue(Queue)
+  OwnedDevice(Device)
+  OwnedAdapter(Adapter)
+  OwnedSurface(Surface)
+  OwnedInstance(Instance)
+  SurfaceUnconfigure(Int32)
+}
+
 pub struct PipelineLayout {
   raw : @c.WGPUPipelineLayout
 }
@@ -2345,6 +2356,7 @@ pub fn PreparedNativeReleaseBatch::discard_prepared(Self) -> Bool
 pub fn PreparedNativeReleaseBatch::finish_after_join(Self) -> Bool
 pub fn PreparedNativeReleaseBatch::native_batch(Self) -> @c.NativeReleaseBatch
 pub fn PreparedNativeReleaseBatch::prepare(Array[AutoReleasePool]) -> Self?
+pub fn PreparedNativeReleaseBatch::prepare_parts(Array[NativeReleasePart]) -> Self?
 
 pub struct PresentMode {
   raw : UInt32

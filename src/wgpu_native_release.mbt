@@ -18,12 +18,38 @@ priv struct NativeReleaseSource {
 }
 
 ///|
+/// Explicit owned references retain their input position. SurfaceUnconfigure
+/// borrows a specific later OwnedSurface occurrence, indexed in this input.
+/// Each Owned* occurrence transfers one independently owned native reference.
+/// Copying a wrapper is not AddRef; this API does not enforce linear ownership.
+/// Callers retain external window owners and obey target thread-affinity rules.
+pub(all) enum NativeReleasePart {
+  Pool(AutoReleasePool)
+  OwnedTexture(Texture)
+  OwnedQueue(Queue)
+  OwnedDevice(Device)
+  OwnedAdapter(Adapter)
+  OwnedSurface(Surface)
+  OwnedInstance(Instance)
+  SurfaceUnconfigure(Int32)
+}
+
+///|
+priv struct NativeReleasePartsCapture {
+  parts : Array[NativeReleasePart]
+  sources : Array[NativeReleaseSource]
+  offsets : Array[Int32]
+  capacity : Int32
+}
+
+///|
 /// A prepared ownership transaction for ordered resource pools. All methods
 /// except native batch execution belong to the creating Moon owner thread.
 /// Keep this plan alive until its worker is joined or permanently retained.
 pub struct PreparedNativeReleaseBatch {
   priv native : @c.NativeReleaseBatch
   priv sources : Array[NativeReleaseSource]
+  priv parts : Array[NativeReleasePart]
   priv mut phase : NativeReleasePlanPhase
 }
 
@@ -76,23 +102,138 @@ fn append_native_release_entry(
 pub fn PreparedNativeReleaseBatch::prepare(
   pools : Array[AutoReleasePool],
 ) -> PreparedNativeReleaseBatch? {
-  let (sources, capacity) = match capture_native_release_sources(pools) {
+  PreparedNativeReleaseBatch::prepare_parts(pools.map(pool => Pool(pool)))
+}
+
+///|
+/// Prepare pool and explicit-reference descriptors without moving ownership.
+/// The caller freezes its outer owner before commit and makes only infallible
+/// ownership updates afterward, before exposing the native handle.
+pub fn PreparedNativeReleaseBatch::prepare_parts(
+  parts : Array[NativeReleasePart],
+) -> PreparedNativeReleaseBatch? {
+  let captured = match capture_native_release_parts(parts) {
     Some(captured) => captured
     None => return None
   }
-  let native = @c.native_release_batch_new(capacity)
+  let native = @c.native_release_batch_new(captured.capacity)
   if @c.native_release_batch_is_null(native) {
     return None
   }
-  if !visit_native_release_sources(sources, entry => {
-      append_native_release_entry(native, entry)
-    }) {
+  if !visit_native_release_parts(
+      captured,
+      entry => append_native_release_entry(native, entry),
+      (part, target) => append_native_release_part(native, part, target),
+    ) ||
+    !@c.native_release_batch_validate(native) {
     guard @c.native_release_batch_discard(native) else {
       abort("native release preparation lost ownership")
     }
     return None
   }
-  Some({ native, sources, phase: Prepared, })
+  Some({
+    native,
+    sources: captured.sources,
+    parts: captured.parts,
+    phase: Prepared,
+  })
+}
+
+///|
+fn capture_native_release_parts(
+  requested : Array[NativeReleasePart],
+) -> NativeReleasePartsCapture? {
+  let parts = requested.copy()
+  let pools : Array[AutoReleasePool] = []
+  for part in parts {
+    if part is Pool(pool) {
+      pools.push(pool)
+    }
+  }
+  let sources = match capture_native_release_sources(pools) {
+    Some((sources, _)) => sources
+    None => return None
+  }
+  let offsets = Array::make(parts.length(), 0)
+  let mut capacity = 0
+  let mut source_index = 0
+  for index = 0; index < parts.length(); index = index + 1 {
+    offsets[index] = capacity
+    let count = match parts[index] {
+      Pool(_) => {
+        let count = sources[source_index].count
+        source_index += 1
+        count
+      }
+      SurfaceUnconfigure(target) => {
+        if target <= index || target >= parts.length() {
+          return None
+        }
+        match parts[target] {
+          OwnedSurface(_) => ()
+          _ => return None
+        }
+        1
+      }
+      _ => 1
+    }
+    if count > 2147483647 - capacity {
+      return None
+    }
+    capacity += count
+  }
+  Some({ parts, sources, offsets, capacity, })
+}
+
+///|
+fn visit_native_release_parts(
+  captured : NativeReleasePartsCapture,
+  pooled : (AutoReleaseEntry) -> Bool,
+  explicit : (NativeReleasePart, Int32) -> Bool,
+) -> Bool {
+  let mut source_index = 0
+  for part in captured.parts {
+    match part {
+      Pool(_) => {
+        let source = captured.sources[source_index]
+        source_index += 1
+        for index = source.count - 1; index >= 0; index = index - 1 {
+          if !pooled(source.entries[index]) {
+            return false
+          }
+        }
+      }
+      SurfaceUnconfigure(target) =>
+        if !explicit(part, captured.offsets[target]) {
+          return false
+        }
+      _ => if !explicit(part, -1) { return false }
+    }
+  }
+  true
+}
+
+///|
+fn append_native_release_part(
+  native : @c.NativeReleaseBatch,
+  part : NativeReleasePart,
+  target : Int32,
+) -> Bool {
+  match part {
+    Pool(_) => abort("pool must be expanded before native preparation")
+    OwnedTexture(value) =>
+      @c.native_release_batch_add_texture(native, value.raw)
+    OwnedQueue(value) => @c.native_release_batch_add_queue(native, value.raw)
+    OwnedDevice(value) => @c.native_release_batch_add_device(native, value.raw)
+    OwnedAdapter(value) =>
+      @c.native_release_batch_add_adapter(native, value.raw)
+    OwnedSurface(value) =>
+      @c.native_release_batch_add_surface(native, value.raw, value.layer_owner)
+    OwnedInstance(value) =>
+      @c.native_release_batch_add_instance(native, value.raw)
+    SurfaceUnconfigure(_) =>
+      @c.native_release_batch_add_surface_unconfigure(native, target)
+  }
 }
 
 ///|
@@ -125,21 +266,6 @@ fn capture_native_release_sources(
     })
   }
   Some((sources, capacity))
-}
-
-///|
-fn visit_native_release_sources(
-  sources : Array[NativeReleaseSource],
-  visit : (AutoReleaseEntry) -> Bool,
-) -> Bool {
-  for source in sources {
-    for index = source.count - 1; index >= 0; index = index - 1 {
-      if !visit(source.entries[index]) {
-        return false
-      }
-    }
-  }
-  true
 }
 
 ///|
@@ -199,6 +325,7 @@ pub fn PreparedNativeReleaseBatch::discard_prepared(
   }
   self.phase = Discarded
   self.sources.clear()
+  self.parts.clear()
   true
 }
 
@@ -216,6 +343,11 @@ pub fn PreparedNativeReleaseBatch::finish_after_join(
     return false
   }
   self.phase = Completed
+  for part in self.parts {
+    if part is OwnedSurface(surface) {
+      surface.clear_native_release_metadata()
+    }
+  }
   for source in self.sources {
     source.state.val.phase = Released
     for entry in source.entries {
@@ -225,5 +357,6 @@ pub fn PreparedNativeReleaseBatch::finish_after_join(
     }
   }
   self.sources.clear()
+  self.parts.clear()
   true
 }

@@ -10,13 +10,15 @@ enum ReleaseKind {
   SurfaceEntry, SamplerEntry, RenderPipelineEntry, RenderBundleEncoderEntry,
   RenderBundleEntry, BindGroupLayoutEntry, BindGroupEntry, PipelineLayoutEntry,
   QuerySetEntry, CommandEncoderEntry, CommandBufferEntry, ComputePassEntry,
-  RenderPassEntry
+  RenderPassEntry, QueueEntry, DeviceEntry, AdapterEntry, InstanceEntry,
+  SurfaceUnconfigureEntry
 };
 
 typedef struct NativeReleaseEntry {
   enum ReleaseKind kind;
   void *handle;
   void *auxiliary;
+  int32_t target;
 } NativeReleaseEntry;
 
 enum BatchPhase { Building, Transferred, Executing, Returned, Discarded, Finished };
@@ -50,7 +52,7 @@ static int32_t append(MbtWgpuNativeReleaseBatch *batch, enum ReleaseKind kind,
                        void *handle, void *auxiliary) {
   if (atomic_load(&batch->phase) != Building || batch->count == batch->capacity ||
       handle == NULL) return 0;
-  batch->entries[batch->count++] = (NativeReleaseEntry){kind, handle, auxiliary};
+  batch->entries[batch->count++] = (NativeReleaseEntry){kind, handle, auxiliary, -1};
   return 1;
 }
 
@@ -76,6 +78,10 @@ APPEND(command_encoder, CommandEncoderEntry, WGPUCommandEncoder)
 APPEND(command_buffer, CommandBufferEntry, WGPUCommandBuffer)
 APPEND(compute_pass, ComputePassEntry, WGPUComputePassEncoder)
 APPEND(render_pass, RenderPassEntry, WGPURenderPassEncoder)
+APPEND(queue, QueueEntry, WGPUQueue)
+APPEND(device, DeviceEntry, WGPUDevice)
+APPEND(adapter, AdapterEntry, WGPUAdapter)
+APPEND(instance, InstanceEntry, WGPUInstance)
 #undef APPEND
 
 int32_t mbt_wgpu_native_release_batch_add_surface(MbtWgpuNativeReleaseBatch *batch,
@@ -84,8 +90,29 @@ int32_t mbt_wgpu_native_release_batch_add_surface(MbtWgpuNativeReleaseBatch *bat
   return append(batch, SurfaceEntry, surface, layer_owner);
 }
 
+int32_t mbt_wgpu_native_release_batch_add_surface_unconfigure(
+    MbtWgpuNativeReleaseBatch *batch, int32_t surface_entry) {
+  if (atomic_load(&batch->phase) != Building || batch->count == batch->capacity ||
+      surface_entry <= batch->count || surface_entry >= batch->capacity) return 0;
+  batch->entries[batch->count++] = (NativeReleaseEntry){
+      SurfaceUnconfigureEntry, NULL, NULL, surface_entry};
+  return 1;
+}
+
+int32_t mbt_wgpu_native_release_batch_validate(MbtWgpuNativeReleaseBatch *batch) {
+  if (atomic_load(&batch->phase) != Building || batch->count != batch->capacity)
+    return 0;
+  for (int32_t index = 0; index < batch->count; ++index) {
+    NativeReleaseEntry entry = batch->entries[index];
+    if (entry.kind == SurfaceUnconfigureEntry &&
+        (entry.target <= index || entry.target >= batch->count ||
+         batch->entries[entry.target].kind != SurfaceEntry)) return 0;
+  }
+  return 1;
+}
+
 int32_t mbt_wgpu_native_release_batch_commit(MbtWgpuNativeReleaseBatch *batch) {
-  if (batch->count != batch->capacity) return 0;
+  if (!mbt_wgpu_native_release_batch_validate(batch)) return 0;
   int expected = Building;
   return atomic_compare_exchange_strong(&batch->phase, &expected, Transferred);
 }
@@ -124,6 +151,15 @@ int32_t mbt_wgpu_native_release_batch_execute(MbtWgpuNativeReleaseBatch *batch) 
     case CommandBufferEntry: wgpuCommandBufferRelease(entry.handle); break;
     case ComputePassEntry: wgpuComputePassEncoderRelease(entry.handle); break;
     case RenderPassEntry: wgpuRenderPassEncoderRelease(entry.handle); break;
+    case QueueEntry: wgpuQueueRelease(entry.handle); break;
+    case DeviceEntry: wgpuDeviceRelease(entry.handle); break;
+    case AdapterEntry: wgpuAdapterRelease(entry.handle); break;
+    case InstanceEntry: wgpuInstanceRelease(entry.handle); break;
+    case SurfaceUnconfigureEntry:
+      // WhyNot: reference a specific later ownership occurrence, not an equal
+      // pointer or an implicit AddRef that changes the release obligations.
+      wgpuSurfaceUnconfigure(batch->entries[entry.target].handle);
+      break;
     }
     atomic_store(&batch->returned_count, index + 1);
   }

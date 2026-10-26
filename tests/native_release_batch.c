@@ -3,14 +3,14 @@
 #include <stdio.h>
 
 typedef struct Recorded { int kind; void *handle; } Recorded;
-static Recorded calls[21];
+static Recorded calls[26];
 static int called;
 
 static void require(int condition, const char *message) {
   if (!condition) { fprintf(stderr, "native release: %s\n", message); exit(1); }
 }
 static void record(int kind, void *handle) {
-  require(called < 21, "unexpected extra release");
+  require(called < 26, "unexpected extra release");
   calls[called++] = (Recorded){kind, handle};
 }
 #define RECORD(name, type, kind) void name(type handle) { record(kind, handle); }
@@ -20,7 +20,7 @@ RECORD(wgpuComputePipelineRelease, WGPUComputePipeline, 2)
 RECORD(wgpuTextureRelease, WGPUTexture, 3)
 RECORD(wgpuTextureViewRelease, WGPUTextureView, 4)
 RECORD(mbt_wgpu_surface_release_safe, WGPUSurface, 5)
-RECORD(mbt_wgpu_cametallayer_owner_release, void *, 18)
+RECORD(mbt_wgpu_cametallayer_owner_release, void *, 99)
 RECORD(wgpuSamplerRelease, WGPUSampler, 6)
 RECORD(wgpuRenderPipelineRelease, WGPURenderPipeline, 7)
 RECORD(wgpuRenderBundleEncoderRelease, WGPURenderBundleEncoder, 8)
@@ -33,17 +33,37 @@ RECORD(wgpuCommandEncoderRelease, WGPUCommandEncoder, 14)
 RECORD(wgpuCommandBufferRelease, WGPUCommandBuffer, 15)
 RECORD(wgpuComputePassEncoderRelease, WGPUComputePassEncoder, 16)
 RECORD(wgpuRenderPassEncoderRelease, WGPURenderPassEncoder, 17)
+RECORD(wgpuQueueRelease, WGPUQueue, 18)
+RECORD(wgpuDeviceRelease, WGPUDevice, 19)
+RECORD(wgpuAdapterRelease, WGPUAdapter, 20)
+RECORD(wgpuInstanceRelease, WGPUInstance, 21)
+RECORD(wgpuSurfaceUnconfigure, WGPUSurface, 22)
 #undef RECORD
 
 int main(void) {
-  static int handles[19];
+  static int handles[23];
   require(mbt_wgpu_native_release_batch_new(-1) == NULL, "negative capacity accepted");
   MbtWgpuNativeReleaseBatch *unused = mbt_wgpu_native_release_batch_new(0);
   require(unused && mbt_wgpu_native_release_batch_discard(unused), "discard failed");
-  MbtWgpuNativeReleaseBatch *batch = mbt_wgpu_native_release_batch_new(20);
+  MbtWgpuNativeReleaseBatch *invalid = mbt_wgpu_native_release_batch_new(2);
+  require(invalid != NULL, "invalid-case allocation failed");
+  require(!mbt_wgpu_native_release_batch_add_surface_unconfigure(invalid, 0),
+          "non-later occurrence accepted");
+  require(!mbt_wgpu_native_release_batch_add_surface_unconfigure(invalid, 2),
+          "out-of-range occurrence accepted");
+  require(mbt_wgpu_native_release_batch_add_surface_unconfigure(invalid, 1),
+          "later occurrence refused prematurely");
+  require(mbt_wgpu_native_release_batch_add_shader(invalid, (WGPUShaderModule)&handles[1]),
+          "invalid-target descriptor append failed");
+  require(!mbt_wgpu_native_release_batch_validate(invalid) &&
+          !mbt_wgpu_native_release_batch_commit(invalid), "non-Surface occurrence committed");
+  require(mbt_wgpu_native_release_batch_discard(invalid), "invalid plan lost preparation");
+  MbtWgpuNativeReleaseBatch *batch = mbt_wgpu_native_release_batch_new(25);
   require(batch != NULL, "allocation failed");
   require(!mbt_wgpu_native_release_batch_execute(batch), "uncommitted execution accepted");
   require(!mbt_wgpu_native_release_batch_commit(batch), "incomplete batch committed");
+  require(mbt_wgpu_native_release_batch_add_surface_unconfigure(batch, 6),
+          "specific later Surface occurrence refused");
 #define ADD(name, type, index) \
   require(mbt_wgpu_native_release_batch_add_##name(batch, (type)&handles[index]), "append failed")
   ADD(buffer, WGPUBuffer, 0);
@@ -67,6 +87,10 @@ int main(void) {
   ADD(render_pass, WGPURenderPassEncoder, 17);
   ADD(buffer, WGPUBuffer, 0);
   ADD(buffer, WGPUBuffer, 0);
+  ADD(queue, WGPUQueue, 19);
+  ADD(device, WGPUDevice, 20);
+  ADD(adapter, WGPUAdapter, 21);
+  ADD(instance, WGPUInstance, 22);
 #undef ADD
   require(mbt_wgpu_native_release_batch_commit(batch), "commit failed");
   require(!mbt_wgpu_native_release_batch_commit(batch), "commit repeated");
@@ -75,14 +99,16 @@ int main(void) {
           "transferred batch changed");
   require(mbt_wgpu_native_release_batch_execute(batch), "execution refused");
   require(!mbt_wgpu_native_release_batch_execute(batch), "execution repeated");
-  require(mbt_wgpu_native_release_batch_returned_count(batch) == 20, "count differs");
-  int call = 0;
+  require(mbt_wgpu_native_release_batch_returned_count(batch) == 25, "count differs");
+  require(calls[0].kind == 22 && calls[0].handle == &handles[5],
+          "unconfigure did not borrow the specified future occurrence");
+  int call = 1;
   for (int index = 0; index < 18; ++index) {
     require(calls[call].kind == index && calls[call].handle == &handles[index],
             "dispatch/order differs");
     ++call;
     if (index == 5) {
-      require(calls[call].kind == 18 && calls[call].handle == &handles[18],
+      require(calls[call].kind == 99 && calls[call].handle == &handles[18],
               "surface auxiliary obligation lost");
       ++call;
     }
@@ -92,8 +118,13 @@ int main(void) {
             "independent identical pointer obligation lost");
     ++call;
   }
-  require(call == called && called == 21, "release count differs");
+  for (int index = 18; index < 22; ++index) {
+    require(calls[call].kind == index && calls[call].handle == &handles[index + 1],
+            "explicit parent reference lost or reordered");
+    ++call;
+  }
+  require(call == called && called == 26, "release count differs");
   require(mbt_wgpu_native_release_batch_finish_after_join(batch), "finalization failed");
-  puts("NATIVE_RELEASE_DISPATCH_OK entries=20 calls=21 kinds=18");
+  puts("NATIVE_RELEASE_DISPATCH_OK entries=25 calls=26 kinds=22 unconfigure=1");
   return 0;
 }

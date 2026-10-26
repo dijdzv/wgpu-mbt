@@ -8,6 +8,41 @@
 pub type NativeReleaseBatch
 
 ///|
+pub extern "C" fn native_release_batch_validate(
+  batch : NativeReleaseBatch,
+) -> Bool = "mbt_wgpu_native_release_batch_validate"
+
+///|
+pub extern "C" fn native_release_batch_add_queue(
+  batch : NativeReleaseBatch,
+  value : Queue,
+) -> Bool = "mbt_wgpu_native_release_batch_add_queue"
+
+///|
+pub extern "C" fn native_release_batch_add_device(
+  batch : NativeReleaseBatch,
+  value : Device,
+) -> Bool = "mbt_wgpu_native_release_batch_add_device"
+
+///|
+pub extern "C" fn native_release_batch_add_adapter(
+  batch : NativeReleaseBatch,
+  value : Adapter,
+) -> Bool = "mbt_wgpu_native_release_batch_add_adapter"
+
+///|
+pub extern "C" fn native_release_batch_add_instance(
+  batch : NativeReleaseBatch,
+  value : Instance,
+) -> Bool = "mbt_wgpu_native_release_batch_add_instance"
+
+///|
+pub extern "C" fn native_release_batch_add_surface_unconfigure(
+  batch : NativeReleaseBatch,
+  surface_entry : Int32,
+) -> Bool = "mbt_wgpu_native_release_batch_add_surface_unconfigure"
+
+///|
 pub extern "C" fn native_release_batch_new(
   capacity : Int32,
 ) -> NativeReleaseBatch = "mbt_wgpu_native_release_batch_new"
