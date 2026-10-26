@@ -65,8 +65,8 @@ test "native release preserves caller pool order and reverses entries inside eac
   )
   assert_eq(seen, [2, 1, 9, 8, 1, 3, 9, 9])
   assert_eq(targets, [7])
-  assert_eq(first.state.val.phase, Open)
-  assert_eq(second.state.val.phase, Open)
+  assert_true(first.state.val.phase == Open)
+  assert_true(second.state.val.phase == Open)
 }
 
 ///|
@@ -110,8 +110,8 @@ test "native release refuses alias duplicates and stale sources without partial 
   let plan = PreparedNativeReleaseBatch::prepare([first, second]).unwrap()
   second.release()
   assert_false(plan.commit())
-  assert_eq(first.state.val.phase, Open)
-  assert_eq(second.state.val.phase, Released)
+  assert_true(first.state.val.phase == Open)
+  assert_true(second.state.val.phase == Released)
   assert_true(plan.discard_prepared())
   let appended = AutoReleasePool::new()
   let stale = PreparedNativeReleaseBatch::prepare([first, appended]).unwrap()
@@ -119,8 +119,8 @@ test "native release refuses alias duplicates and stale sources without partial 
   // captured into a descriptor or sent to native release.
   ignore(appended.track_texture_view({ raw: @c.null_texture_view(), }))
   assert_false(stale.commit())
-  assert_eq(first.state.val.phase, Open)
-  assert_eq(appended.state.val.phase, Open)
+  assert_true(first.state.val.phase == Open)
+  assert_true(appended.state.val.phase == Open)
   assert_eq(appended.state.val.entries.length(), 1)
   assert_true(stale.discard_prepared())
   first.state.val.phase = Releasing
@@ -135,15 +135,15 @@ test "native release commit execution and owner finalization are separate once-o
   let discarded = PreparedNativeReleaseBatch::prepare([first]).unwrap()
   assert_true(discarded.discard_prepared())
   assert_false(discarded.commit())
-  assert_eq(first.state.val.phase, Open)
+  assert_true(first.state.val.phase == Open)
   let plan = PreparedNativeReleaseBatch::prepare([first, second]).unwrap()
   assert_true(plan.commit())
   assert_false(plan.commit())
   assert_false(plan.discard_prepared())
-  assert_eq(first.state.val.phase, Transferred)
-  assert_eq(second.state.val.phase, Transferred)
+  assert_true(first.state.val.phase == Transferred)
+  assert_true(second.state.val.phase == Transferred)
   first.release()
-  assert_eq(first.state.val.phase, Transferred)
+  assert_true(first.state.val.phase == Transferred)
   assert_false(plan.finish_after_join())
   let native = plan.native_batch()
   // Synchronous empty execution has returned here; there is no foreign worker
@@ -153,6 +153,6 @@ test "native release commit execution and owner finalization are separate once-o
   assert_false(@c.native_release_batch_execute(native))
   assert_true(plan.finish_after_join())
   assert_false(plan.finish_after_join())
-  assert_eq(first.state.val.phase, Released)
-  assert_eq(second.state.val.phase, Released)
+  assert_true(first.state.val.phase == Released)
+  assert_true(second.state.val.phase == Released)
 }

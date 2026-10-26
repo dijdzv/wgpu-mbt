@@ -64,7 +64,7 @@ priv enum AutoReleasePoolPhase {
   Releasing
   Transferred
   Released
-} derive(Eq, Debug)
+} derive(Eq)
 
 ///|
 let next_auto_release_pool_id : Ref[UInt64] = Ref(1UL)
