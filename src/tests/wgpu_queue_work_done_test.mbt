@@ -32,6 +32,87 @@ fn wait_for_queue_map_read(
 }
 
 ///|
+test "windows D3D12 destroyed pending map future clears and recovers" {
+  if @wgpu.platform_is_windows() {
+    // WhyNot: an unfinished future or queued write can still use native handles.
+    let outstanding = Ref(false)
+    let instance = @wgpu.Instance::create()
+    defer (if !outstanding.val { instance.release() })
+    let fallback = @env.get_env_var("METONIC_GPU_FALLBACK") == Some("1")
+    let adapter = instance.request_adapter_sync_options_u32(
+      backend_type_u32=@wgpu.BACKEND_TYPE_D3_D12,
+      force_fallback_adapter=fallback,
+    )
+    defer (if !outstanding.val { adapter.release() })
+    assert_eq(adapter.info_backend_type_u32(), @wgpu.BACKEND_TYPE_D3_D12)
+    let device = adapter.request_device_sync(instance)
+    defer (if !outstanding.val { device.release() })
+    assert_eq(device.info_backend_type_u32(), @wgpu.BACKEND_TYPE_D3_D12)
+    let queue = device.queue()
+    defer (if !outstanding.val { queue.release() })
+    println(
+      "RAW_MAP_D3D12 adapter=" +
+      adapter.info_device() +
+      " fallback_requested=" +
+      fallback.to_string(),
+    )
+    let source = device.create_buffer(
+      size=8UL,
+      usage=bu(@wgpu.BUFFER_USAGE_COPY_SRC | @wgpu.BUFFER_USAGE_COPY_DST),
+    )
+    defer (if !outstanding.val { source.release() })
+    let bytes = u32le_pack([0x01020304U, 0x05060708U])
+    outstanding.val = true
+    queue.write_buffer(source, 0UL, bytes)
+    let usage = bu(@wgpu.BUFFER_USAGE_MAP_READ | @wgpu.BUFFER_USAGE_COPY_DST)
+    let doomed = device.create_buffer(size=8UL, usage~)
+    defer (if !outstanding.val { doomed.release() })
+    let encoder = device.create_command_encoder()
+    defer (if !outstanding.val { encoder.release() })
+    encoder.copy_buffer_to_buffer(source, 0UL, doomed, 0UL, 8UL)
+    let command = encoder.finish()
+    defer (if !outstanding.val { command.release() })
+    let future = queue.submit_one_and_map_read_async(command, doomed, 0UL, 8UL)
+    assert_true(future != 0UL)
+    assert_eq(queue.map_read_async_status_u32(future), 0U)
+    doomed.destroy()
+    assert_eq(queue.map_read_async_status_u32(future), 0U)
+    assert_true(wait_for_queue_map_read(instance, device, future))
+    assert_eq(
+      queue.map_read_async_status_u32(future),
+      @wgpu.MAP_ASYNC_STATUS_ERROR,
+    )
+    queue.map_read_async_clear(future)
+    outstanding.val = false
+    assert_eq(queue.map_read_async_status_u32(future), 0U)
+    assert_eq(queue.map_read_async_read(future), [])
+
+    let fresh = device.create_buffer(size=8UL, usage~)
+    defer (if !outstanding.val { fresh.release() })
+    let recovery_encoder = device.create_command_encoder()
+    defer (if !outstanding.val { recovery_encoder.release() })
+    recovery_encoder.copy_buffer_to_buffer(source, 0UL, fresh, 0UL, 8UL)
+    let recovery_command = recovery_encoder.finish()
+    defer (if !outstanding.val { recovery_command.release() })
+    outstanding.val = true
+    let recovery = queue.submit_one_and_map_read_async(
+      recovery_command, fresh, 0UL, 8UL,
+    )
+    assert_true(recovery != 0UL)
+    assert_true(wait_for_queue_map_read(instance, device, recovery))
+    assert_eq(
+      queue.map_read_async_status_u32(recovery),
+      @wgpu.MAP_ASYNC_STATUS_SUCCESS,
+    )
+    assert_eq(queue.map_read_async_read(recovery), bytes)
+    queue.map_read_async_clear(recovery)
+    outstanding.val = false
+    assert_eq(queue.map_read_async_status_u32(recovery), 0U)
+    assert_eq(queue.map_read_async_read(recovery), [])
+  }
+}
+
+///|
 test "wgpu queue.on_submitted_work_done_sync" {
   let instance = @wgpu.Instance::create()
   let adapter = instance.request_adapter_sync()
