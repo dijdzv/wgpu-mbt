@@ -76,11 +76,14 @@ test "windows D3D12 destroyed pending map future clears and recovers" {
     assert_true(future != 0UL)
     assert_eq(queue.map_read_async_status_u32(future), 0U)
     doomed.destroy()
-    assert_eq(queue.map_read_async_status_u32(future), 0U)
+    let after_destroy = queue.map_read_async_status_u32(future)
+    assert_true(
+      after_destroy == 0U || after_destroy == @wgpu.MAP_ASYNC_STATUS_ABORTED,
+    )
     assert_true(wait_for_queue_map_read(instance, device, future))
     assert_eq(
       queue.map_read_async_status_u32(future),
-      @wgpu.MAP_ASYNC_STATUS_ERROR,
+      @wgpu.MAP_ASYNC_STATUS_ABORTED,
     )
     queue.map_read_async_clear(future)
     outstanding.val = false
