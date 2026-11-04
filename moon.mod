@@ -21,5 +21,5 @@ import {
 source = "src"
 
 options(
-  "--moonbit-unstable-prebuild": "build.js",
+  "--moonbit-unstable-prebuild": "build.cjs",
 )

@@ -3,7 +3,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { SUPPORTED_RELEASE, releaseAssetFor } = require('./scripts/wgpu_native_release');
+const { SUPPORTED_RELEASE, releaseAssetFor } = require('./scripts/wgpu_native_release.cjs');
 
 const MODULE_NAME = 'Milky2018/wgpu_mbt';
 const LINK_MODE = (process.env.MBT_WGPU_LINK_MODE || 'static').trim().toLowerCase();
