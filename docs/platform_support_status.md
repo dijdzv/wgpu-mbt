@@ -81,8 +81,8 @@ What exists today:
 
 What is missing today:
 
-- no Android release asset in [`scripts/wgpu_native_release.js`](../scripts/wgpu_native_release.js)
-- no Android path in [`build.js`](../build.js) for the pinned release workflow
+- no Android release asset in [`scripts/wgpu_native_release.cjs`](../scripts/wgpu_native_release.cjs)
+- no Android path in [`build.cjs`](../build.cjs) for the pinned release workflow
 - no Android CI job or device/emulator validation
 - no checked-in toolchain recipe for building `wgpu-native` for Android
 - no checked-in on-device smoke or surface-present test
